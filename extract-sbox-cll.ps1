@@ -42,7 +42,7 @@ function Select-PackageFile {
     )
 
     if (-not (Test-Path -LiteralPath $Directory -PathType Container)) {
-        throw "Dossier introuvable: $Directory"
+        throw "Directory not found: $Directory"
     }
 
     $files = @(Get-ChildItem -LiteralPath $Directory -Filter '*.cll' -File |
@@ -52,7 +52,7 @@ function Select-PackageFile {
         Sort-Object LastWriteTime -Descending)
 
     if (-not $files -or $files.Count -eq 0) {
-        throw "Aucun .cll trouvé dans '$Directory' avec le filtre '$NameFilter'."
+        throw "No .cll file found in '$Directory' with filter '$NameFilter'."
     }
 
     if ($SelectedIndex -ge 0) {
@@ -63,7 +63,7 @@ function Select-PackageFile {
     }
 
     Write-Host ''
-    Write-Host 'Packages .cll disponibles :' -ForegroundColor Cyan
+    Write-Host 'Available .cll packages:' -ForegroundColor Cyan
     for ($i = 0; $i -lt $files.Count; $i++) {
         $file = $files[$i]
         $display = Get-PackageDisplayName $file
@@ -73,7 +73,7 @@ function Select-PackageFile {
     }
 
     do {
-        $choice = Read-Host 'Entre l''index du package à extraire'
+        $choice = Read-Host 'Enter the package index to extract'
     } while (-not [int]::TryParse($choice, [ref]$SelectedIndex) -or $SelectedIndex -lt 0 -or $SelectedIndex -ge $files.Count)
 
     return $files[$SelectedIndex]
@@ -86,11 +86,11 @@ function Read-AssetExtractionOptions {
     )
 
     Write-Host ''
-    $extractAssets = Read-Host 'Voulez-vous extraire les assets référencés (modèles, matériaux, etc.) ? (O/n)'
+    $extractAssets = Read-Host 'Do you want to extract referenced assets (models, materials, etc.)? (Y/n)'
     if ($extractAssets -notmatch '^n') {
         $IncludeReferencedAssets.Value = $true
         
-        $decompile = Read-Host 'Voulez-vous décompiler les assets compilés (*_c) avec Source2Viewer ? (O/n)'
+        $decompile = Read-Host 'Do you want to decompile compiled assets (*_c) with Source2Viewer? (Y/n)'
         if ($decompile -notmatch '^n') {
             $DecompileCompiledAssets.Value = $true
         }
@@ -133,7 +133,7 @@ function Remove-ExtractionIntermediateFiles {
             Remove-Item -LiteralPath $path -Force -ErrorAction Stop
         }
         catch {
-            Write-Warning "Impossible de supprimer le fichier intermédiaire '$path': $($_.Exception.Message)"
+            Write-Warning "Unable to delete intermediate file '$path': $($_.Exception.Message)"
         }
     }
 }
@@ -185,7 +185,7 @@ function Export-GmcaTextEntries {
             $written++
         }
         catch {
-            Write-Warning "Entrée ignorée: $relativePath :: $($_.Exception.Message)"
+            Write-Warning "Skipped entry: $relativePath :: $($_.Exception.Message)"
         }
     }
 
@@ -365,7 +365,7 @@ function Convert-CopiedAssets {
     )
 
     if (-not (Test-Path -LiteralPath $CliPath -PathType Leaf)) {
-        throw "Source2Viewer-CLI.exe introuvable: $CliPath"
+        throw "Source2Viewer-CLI.exe not found: $CliPath"
     }
 
     $decompiledRoot = Join-Path $DestinationDirectory 'decompiled_assets'
@@ -454,7 +454,7 @@ function Copy-ClosestXml {
 
 if ($PackagePath) {
     if (-not (Test-Path -LiteralPath $PackagePath -PathType Leaf)) {
-        throw "PackagePath introuvable: $PackagePath"
+        throw "PackagePath not found: $PackagePath"
     }
     $selectedFile = Get-Item -LiteralPath $PackagePath
 }
@@ -476,7 +476,7 @@ $safeName = ($packageName -replace '[^a-zA-Z0-9._-]', '_')
 $destination = Join-Path $OutputRoot $safeName
 
 if ((Test-Path -LiteralPath $destination) -and -not $Force) {
-    throw "Le dossier de sortie existe déjà: $destination`nUtilise -Force pour réécrire."
+    throw "Output directory already exists: $destination`nUse -Force to overwrite it."
 }
 
 New-Item -ItemType Directory -Path $destination -Force | Out-Null
@@ -536,13 +536,13 @@ try {
         CopiedAssetCount   = if ($assetCopyResult) { $assetCopyResult.Found.Count } else { 0 }
         MissingAssetCount  = if ($assetCopyResult) { $assetCopyResult.Missing.Count } else { 0 }
         DecompiledAssetCount = if ($decompileResults) { $decompileResults.Count } else { 0 }
-        DecompressedBlob   = if ($KeepDecompressedBlob) { $gmcaBlobPath } else { "Supprimé" }
+        DecompressedBlob   = if ($KeepDecompressedBlob) { $gmcaBlobPath } else { "Deleted" }
         XmlCopied          = [bool]$xmlPath
         XmlPath            = $xmlPath
     }
 
     Write-Host ''
-    Write-Host 'Extraction terminée.' -ForegroundColor Green
+    Write-Host 'Extraction completed.' -ForegroundColor Green
     $summary | Format-List
 }
 finally {
