@@ -12,6 +12,8 @@ PowerShell script to extract server content from **s&box** `.cll` packages and o
 - Can decompile compiled `*_c` assets into `decompiled_assets/` with `Source2Viewer-CLI.exe`.
 - Can copy the XML file associated with the package.
 
+> Decompilation depends on ValveResourceFormat support for each compiled asset type. Some s&box `.vmat_c`, `.prefab_c`, or `.sound_c` files may fail to decompile with the current ValveResourceFormat release. When that happens, the original compiled assets are still copied to `referenced_assets/`, and failures are recorded in `asset-report.json`.
+
 ## Requirements
 
 - Windows
@@ -137,5 +139,5 @@ Keep intermediate `.gz` and `.gmca` files:
 - `.gz` and `.gmca` files are deleted automatically after extraction unless `-KeepDecompressedBlob` is used.
 - `-Force` clears the existing package output folder before extracting again.
 - Missing assets and decompilation failures are listed in `asset-report.json` when `-IncludeReferencedAssets` is enabled.
-- Some s&box compiled assets may not be supported by the installed ValveResourceFormat version; failed decompilations are reported without leaving empty output folders.
+- Failed decompilations are reported without leaving empty output folders.
 - This script does not redistribute any s&box content or third-party binaries.
