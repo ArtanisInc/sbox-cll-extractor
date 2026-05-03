@@ -6,9 +6,7 @@ param(
     [int]$Index = -1,
     [string]$PackagePath,
     [switch]$IncludeReferencedAssets,
-    [switch]$DecompileCompiledAssets,
     [string[]]$AssetSearchRoots,
-    [string]$VrfCliPath = (Join-Path $PSScriptRoot 'Source2Viewer-CLI.exe'),
     [switch]$KeepDecompressedBlob,
     [switch]$CopyXml,
     [switch]$Force
@@ -81,19 +79,13 @@ function Select-PackageFile {
 
 function Read-AssetExtractionOptions {
     param(
-        [ref]$IncludeReferencedAssets,
-        [ref]$DecompileCompiledAssets
+        [ref]$IncludeReferencedAssets
     )
 
     Write-Host ''
     $extractAssets = Read-Host 'Do you want to extract referenced assets (models, materials, etc.)? (Y/n)'
     if ($extractAssets -notmatch '^n') {
         $IncludeReferencedAssets.Value = $true
-        
-        $decompile = Read-Host 'Do you want to decompile compiled assets (*_c) with Source2Viewer? (Y/n)'
-        if ($decompile -notmatch '^n') {
-            $DecompileCompiledAssets.Value = $true
-        }
     }
 }
 
@@ -375,70 +367,6 @@ function Find-AssetFile {
     return $null
 }
 
-function Convert-CopiedAssets {
-    param(
-        [Parameter(Mandatory)][object[]]$CopiedAssets,
-        [Parameter(Mandatory)][string]$DestinationDirectory,
-        [Parameter(Mandatory)][string]$CliPath
-    )
-
-    if (-not (Test-Path -LiteralPath $CliPath -PathType Leaf)) {
-        throw "Source2Viewer-CLI.exe not found: $CliPath"
-    }
-
-    $decompiledRoot = Join-Path $DestinationDirectory 'decompiled_assets'
-    New-Item -ItemType Directory -Path $decompiledRoot -Force | Out-Null
-
-    $results = [System.Collections.Generic.List[object]]::new()
-    foreach ($asset in $CopiedAssets) {
-        $compiledSource = $asset.Source
-        if (-not $compiledSource.EndsWith('_c', [System.StringComparison]::OrdinalIgnoreCase)) {
-            continue
-        }
-
-        $assetRelDir = Split-Path -Parent $asset.AssetPath
-        $outDir = if ($assetRelDir) { Join-Path $decompiledRoot ($assetRelDir -replace '/', '\\') } else { $decompiledRoot }
-        New-Item -ItemType Directory -Path $outDir -Force | Out-Null
-
-        $existingFiles = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-        Get-ChildItem -LiteralPath $outDir -Recurse -File -ErrorAction SilentlyContinue |
-            ForEach-Object { $existingFiles.Add($_.FullName) | Out-Null }
-
-        $commandOutput = & $CliPath -i $compiledSource -o $outDir -d 2>&1
-        $outputFiles = @(Get-ChildItem -LiteralPath $outDir -Recurse -File -ErrorAction SilentlyContinue |
-            Where-Object { -not $existingFiles.Contains($_.FullName) } |
-            ForEach-Object { $_.FullName })
-        $success = $outputFiles.Count -gt 0
-
-        if (-not $success) {
-            do {
-                $currentDir = Get-Item -LiteralPath $outDir -ErrorAction SilentlyContinue
-                if (-not $currentDir -or $currentDir.FullName -ieq $decompiledRoot) { break }
-                if (@(Get-ChildItem -LiteralPath $currentDir.FullName -Force).Count -gt 0) { break }
-
-                $parentDir = Split-Path -Parent $currentDir.FullName
-                Remove-Item -LiteralPath $currentDir.FullName -Force
-                $outDir = $parentDir
-            } while ($true)
-        }
-
-        $results.Add([pscustomobject]@{
-            AssetPath = $asset.AssetPath
-            Source    = $compiledSource
-            OutputDir = $outDir
-            Success   = $success
-            OutputFiles = $outputFiles
-            Output    = ($commandOutput | Out-String).Trim()
-        })
-    }
-
-    if (-not (Get-ChildItem -LiteralPath $decompiledRoot -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1)) {
-        Remove-Item -LiteralPath $decompiledRoot -Recurse -Force -ErrorAction SilentlyContinue
-    }
-
-    return $results
-}
-
 function Copy-ReferencedAssets {
     param(
         [Parameter(Mandatory)][string[]]$AssetPaths,
@@ -508,12 +436,10 @@ else {
 }
 
 # Prompt for asset extraction if not provided via CLI
-if (-not $IncludeReferencedAssets -and -not $DecompileCompiledAssets) {
+if (-not $IncludeReferencedAssets) {
     $refInclude = [ref]$IncludeReferencedAssets
-    $refDecompile = [ref]$DecompileCompiledAssets
-    Read-AssetExtractionOptions -IncludeReferencedAssets $refInclude -DecompileCompiledAssets $refDecompile
+    Read-AssetExtractionOptions -IncludeReferencedAssets $refInclude
     $IncludeReferencedAssets = $refInclude.Value
-    $DecompileCompiledAssets = $refDecompile.Value
 }
 
 $packageName = Get-PackageDisplayName $selectedFile
@@ -538,16 +464,11 @@ try {
 
     $assetCopyResult = $null
     $assetRoots = $null
-    $decompileResults = $null
     $referencedAssetsDirectory = $null
     if ($IncludeReferencedAssets) {
         $assetRoots = Resolve-AssetSearchRoots -AssetsBinDirectory $AssetsBinPath -CustomRoots $AssetSearchRoots
         $referencedAssetsDirectory = Join-Path $destination 'referenced_assets'
         $assetCopyResult = Copy-ReferencedAssets -AssetPaths $assetPaths -DestinationDirectory $referencedAssetsDirectory -SearchRoots $assetRoots
-
-        if ($DecompileCompiledAssets -and $assetCopyResult.Found.Count -gt 0) {
-            $decompileResults = Convert-CopiedAssets -CopiedAssets $assetCopyResult.Found -DestinationDirectory $destination -CliPath $VrfCliPath
-        }
 
         $report = [pscustomobject]@{
             SearchRoots          = $assetRoots
@@ -557,9 +478,6 @@ try {
             MissingCount         = $assetCopyResult.Missing.Count
             Found                = $assetCopyResult.Found
             Missing              = $assetCopyResult.Missing
-            DecompiledCount      = if ($decompileResults) { @($decompileResults | Where-Object { $_.Success }).Count } else { 0 }
-            DecompileFailureCount = if ($decompileResults) { @($decompileResults | Where-Object { -not $_.Success }).Count } else { 0 }
-            Decompiled           = $decompileResults
         }
 
         $reportPath = Join-Path $destination 'asset-report.json'
@@ -580,8 +498,6 @@ try {
         ReferencedAssetsDirectory = $referencedAssetsDirectory
         CopiedAssetCount   = if ($assetCopyResult) { $assetCopyResult.Found.Count } else { 0 }
         MissingAssetCount  = if ($assetCopyResult) { $assetCopyResult.Missing.Count } else { 0 }
-        DecompiledAssetCount = if ($decompileResults) { @($decompileResults | Where-Object { $_.Success }).Count } else { 0 }
-        DecompileFailureCount = if ($decompileResults) { @($decompileResults | Where-Object { -not $_.Success }).Count } else { 0 }
         DecompressedBlob   = if ($KeepDecompressedBlob) { $gmcaBlobPath } else { "Deleted" }
         XmlCopied          = [bool]$xmlPath
         XmlPath            = $xmlPath
