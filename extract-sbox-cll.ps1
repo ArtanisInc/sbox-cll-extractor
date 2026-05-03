@@ -432,6 +432,10 @@ function Convert-CopiedAssets {
         })
     }
 
+    if (-not (Get-ChildItem -LiteralPath $decompiledRoot -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+        Remove-Item -LiteralPath $decompiledRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
     return $results
 }
 

@@ -63,7 +63,7 @@ extracted_packages/
 └── package_name/
     ├── <extracted source files and folders>
     ├── referenced_assets/   # copied referenced assets, when enabled
-    ├── decompiled_assets/   # decompiled Source 2 assets, when enabled
+    ├── decompiled_assets/   # created only when decompilation produces files
     └── asset-report.json    # asset copy/decompile report, when enabled
 ```
 
@@ -139,5 +139,5 @@ Keep intermediate `.gz` and `.gmca` files:
 - `.gz` and `.gmca` files are deleted automatically after extraction unless `-KeepDecompressedBlob` is used.
 - `-Force` clears the existing package output folder before extracting again.
 - Missing assets and decompilation failures are listed in `asset-report.json` when `-IncludeReferencedAssets` is enabled.
-- Failed decompilations are reported without leaving empty output folders.
+- Failed decompilations are reported without leaving an empty `decompiled_assets/` folder.
 - This script does not redistribute any s&box content or third-party binaries.
