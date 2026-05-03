@@ -1,0 +1,18 @@
+# Extraction outputs
+extracted_packages/
+*.gmca
+*.gz
+
+# Local OMX/Codex runtime state
+.omx/
+
+# Local third-party/runtime binaries
+Source2Viewer-CLI.exe
+*.dll
+
+# PowerShell/editor noise
+*.ps1xml
+.vscode/
+.idea/
+*.tmp
+*.log
