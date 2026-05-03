@@ -17,6 +17,14 @@ PowerShell script to extract server content from **s&box** `.cll` packages and o
 - PowerShell 7 recommended
 - A local **s&box** installation
 
+By default, the script expects s&box to be installed in the standard Steam location:
+
+```text
+C:\Program Files (x86)\Steam\steamapps\common\sbox
+```
+
+If your installation is somewhere else, pass a custom `_bin` path with `-AssetsBinPath`.
+
 ## Installation
 
 Clone the repository:
@@ -34,7 +42,7 @@ Interactive mode:
 .\extract-sbox-cll.ps1
 ```
 
-By default, the script looks for packages in:
+By default, the script looks for packages in the standard Steam s&box asset cache:
 
 ```text
 C:\Program Files (x86)\Steam\steamapps\common\sbox\download\assets\_bin
