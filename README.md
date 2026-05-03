@@ -30,8 +30,8 @@ PowerShell script to extract server content from **s&box** `.cll` packages and o
 Clone the repository:
 
 ```powershell
-git clone <repository-url>
-cd sbox
+git clone https://github.com/ArtanisInc/sbox-cll-extractor.git
+cd sbox-cll-extractor
 ```
 
 If you want to use decompilation, download ValveResourceFormat from <https://github.com/ValveResourceFormat/ValveResourceFormat/releases>, then place `Source2Viewer-CLI.exe` and its DLL files in the same folder as `extract-sbox-cll.ps1`, or provide a custom path with `-VrfCliPath`.
