@@ -1,6 +1,6 @@
 # sbox CLL Extractor
 
-PowerShell script to extract servers content from **s&box** `.cll` packages and optionally copy/decompile referenced assets.
+PowerShell script to extract server content from **s&box** `.cll` packages and optionally copy/decompile referenced assets.
 
 ## Features
 
@@ -8,8 +8,8 @@ PowerShell script to extract servers content from **s&box** `.cll` packages and 
 - Automatically decompresses the selected package.
 - Extracts text entries into a readable file tree.
 - Deletes intermediate `.gz` and `.gmca` files by default after extraction.
-- Can copy assets referenced by the package.
-- Can decompile compiled `*_c` assets with `Source2Viewer-CLI.exe`.
+- Can copy assets referenced by the package into `referenced_assets/`.
+- Can decompile compiled `*_c` assets into `decompiled_assets/` with `Source2Viewer-CLI.exe`.
 - Can copy the XML file associated with the package.
 
 ## Requirements
@@ -52,6 +52,17 @@ Extracted files are written to:
 
 ```text
 .\extracted_packages
+```
+
+For each package, the output folder is organized as follows:
+
+```text
+extracted_packages/
+└── package_name/
+    ├── <extracted source files and folders>
+    ├── referenced_assets/   # copied referenced assets, when enabled
+    ├── decompiled_assets/   # decompiled Source 2 assets, when enabled
+    └── asset-report.json    # asset copy/decompile report, when enabled
 ```
 
 ## Examples
@@ -113,8 +124,8 @@ Keep intermediate `.gz` and `.gmca` files:
 | `-Filter`                  | Name filter used to select a package.               |
 | `-Index`                   | Package index to extract from the interactive list. |
 | `-PackagePath`             | Direct path to a `.cll` file.                       |
-| `-IncludeReferencedAssets` | Copies referenced assets when found.                |
-| `-DecompileCompiledAssets` | Decompiles `*_c` assets with Source2Viewer.         |
+| `-IncludeReferencedAssets` | Copies referenced assets into `referenced_assets/` when found. |
+| `-DecompileCompiledAssets` | Decompiles `*_c` assets into `decompiled_assets/` with Source2Viewer. |
 | `-AssetSearchRoots`        | Custom directories used to search for assets.       |
 | `-VrfCliPath`              | Path to `Source2Viewer-CLI.exe`.                    |
 | `-KeepDecompressedBlob`    | Keeps `.gz` and `.gmca` files.                      |
@@ -124,5 +135,6 @@ Keep intermediate `.gz` and `.gmca` files:
 ## Notes
 
 - `.gz` and `.gmca` files are deleted automatically after extraction unless `-KeepDecompressedBlob` is used.
+- `-Force` clears the existing package output folder before extracting again.
 - Missing assets are listed in `asset-report.json` when `-IncludeReferencedAssets` is enabled.
 - This script does not redistribute any s&box content or third-party binaries.

@@ -138,6 +138,24 @@ function Remove-ExtractionIntermediateFiles {
     }
 }
 
+function Initialize-OutputDirectory {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [switch]$Force
+    )
+
+    if (Test-Path -LiteralPath $Path -PathType Container) {
+        if (-not $Force) {
+            throw "Output directory already exists: $Path`nUse -Force to overwrite it."
+        }
+
+        Get-ChildItem -LiteralPath $Path -Force | Remove-Item -Recurse -Force
+        return
+    }
+
+    New-Item -ItemType Directory -Path $Path -Force | Out-Null
+}
+
 function Convert-EscapedJsonString {
     param([Parameter(Mandatory)][string]$EscapedText)
 
@@ -474,12 +492,7 @@ if (-not $IncludeReferencedAssets -and -not $DecompileCompiledAssets) {
 $packageName = Get-PackageDisplayName $selectedFile
 $safeName = ($packageName -replace '[^a-zA-Z0-9._-]', '_')
 $destination = Join-Path $OutputRoot $safeName
-
-if ((Test-Path -LiteralPath $destination) -and -not $Force) {
-    throw "Output directory already exists: $destination`nUse -Force to overwrite it."
-}
-
-New-Item -ItemType Directory -Path $destination -Force | Out-Null
+Initialize-OutputDirectory -Path $destination -Force:$Force
 
 $gzipCopyPath = Join-Path $destination ($safeName + '.gz')
 $gmcaBlobPath = Join-Path $destination ($safeName + '.gmca')
@@ -499,9 +512,11 @@ try {
     $assetCopyResult = $null
     $assetRoots = $null
     $decompileResults = $null
+    $referencedAssetsDirectory = $null
     if ($IncludeReferencedAssets) {
         $assetRoots = Resolve-AssetSearchRoots -AssetsBinDirectory $AssetsBinPath -CustomRoots $AssetSearchRoots
-        $assetCopyResult = Copy-ReferencedAssets -AssetPaths $assetPaths -DestinationDirectory $destination -SearchRoots $assetRoots
+        $referencedAssetsDirectory = Join-Path $destination 'referenced_assets'
+        $assetCopyResult = Copy-ReferencedAssets -AssetPaths $assetPaths -DestinationDirectory $referencedAssetsDirectory -SearchRoots $assetRoots
 
         if ($DecompileCompiledAssets -and $assetCopyResult.Found.Count -gt 0) {
             $decompileResults = Convert-CopiedAssets -CopiedAssets $assetCopyResult.Found -DestinationDirectory $destination -CliPath $VrfCliPath
@@ -509,6 +524,7 @@ try {
 
         $report = [pscustomobject]@{
             SearchRoots          = $assetRoots
+            ReferencedAssetsDirectory = $referencedAssetsDirectory
             ReferencedAssetCount = $assetPaths.Count
             FoundCount           = $assetCopyResult.Found.Count
             MissingCount         = $assetCopyResult.Missing.Count
@@ -533,6 +549,7 @@ try {
         OutputDirectory    = $destination
         ExtractedFileCount = $writtenCount
         ReferencedAssetCount = $assetPaths.Count
+        ReferencedAssetsDirectory = $referencedAssetsDirectory
         CopiedAssetCount   = if ($assetCopyResult) { $assetCopyResult.Found.Count } else { 0 }
         MissingAssetCount  = if ($assetCopyResult) { $assetCopyResult.Missing.Count } else { 0 }
         DecompiledAssetCount = if ($decompileResults) { $decompileResults.Count } else { 0 }
