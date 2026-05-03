@@ -400,11 +400,34 @@ function Convert-CopiedAssets {
         $outDir = if ($assetRelDir) { Join-Path $decompiledRoot ($assetRelDir -replace '/', '\\') } else { $decompiledRoot }
         New-Item -ItemType Directory -Path $outDir -Force | Out-Null
 
+        $existingFiles = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        Get-ChildItem -LiteralPath $outDir -Recurse -File -ErrorAction SilentlyContinue |
+            ForEach-Object { $existingFiles.Add($_.FullName) | Out-Null }
+
         $commandOutput = & $CliPath -i $compiledSource -o $outDir -d 2>&1
+        $outputFiles = @(Get-ChildItem -LiteralPath $outDir -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { -not $existingFiles.Contains($_.FullName) } |
+            ForEach-Object { $_.FullName })
+        $success = $outputFiles.Count -gt 0
+
+        if (-not $success) {
+            do {
+                $currentDir = Get-Item -LiteralPath $outDir -ErrorAction SilentlyContinue
+                if (-not $currentDir -or $currentDir.FullName -ieq $decompiledRoot) { break }
+                if (@(Get-ChildItem -LiteralPath $currentDir.FullName -Force).Count -gt 0) { break }
+
+                $parentDir = Split-Path -Parent $currentDir.FullName
+                Remove-Item -LiteralPath $currentDir.FullName -Force
+                $outDir = $parentDir
+            } while ($true)
+        }
+
         $results.Add([pscustomobject]@{
             AssetPath = $asset.AssetPath
             Source    = $compiledSource
             OutputDir = $outDir
+            Success   = $success
+            OutputFiles = $outputFiles
             Output    = ($commandOutput | Out-String).Trim()
         })
     }
@@ -530,7 +553,8 @@ try {
             MissingCount         = $assetCopyResult.Missing.Count
             Found                = $assetCopyResult.Found
             Missing              = $assetCopyResult.Missing
-            DecompiledCount      = if ($decompileResults) { $decompileResults.Count } else { 0 }
+            DecompiledCount      = if ($decompileResults) { @($decompileResults | Where-Object { $_.Success }).Count } else { 0 }
+            DecompileFailureCount = if ($decompileResults) { @($decompileResults | Where-Object { -not $_.Success }).Count } else { 0 }
             Decompiled           = $decompileResults
         }
 
@@ -552,7 +576,8 @@ try {
         ReferencedAssetsDirectory = $referencedAssetsDirectory
         CopiedAssetCount   = if ($assetCopyResult) { $assetCopyResult.Found.Count } else { 0 }
         MissingAssetCount  = if ($assetCopyResult) { $assetCopyResult.Missing.Count } else { 0 }
-        DecompiledAssetCount = if ($decompileResults) { $decompileResults.Count } else { 0 }
+        DecompiledAssetCount = if ($decompileResults) { @($decompileResults | Where-Object { $_.Success }).Count } else { 0 }
+        DecompileFailureCount = if ($decompileResults) { @($decompileResults | Where-Object { -not $_.Success }).Count } else { 0 }
         DecompressedBlob   = if ($KeepDecompressedBlob) { $gmcaBlobPath } else { "Deleted" }
         XmlCopied          = [bool]$xmlPath
         XmlPath            = $xmlPath

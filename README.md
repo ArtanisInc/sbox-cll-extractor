@@ -136,5 +136,6 @@ Keep intermediate `.gz` and `.gmca` files:
 
 - `.gz` and `.gmca` files are deleted automatically after extraction unless `-KeepDecompressedBlob` is used.
 - `-Force` clears the existing package output folder before extracting again.
-- Missing assets are listed in `asset-report.json` when `-IncludeReferencedAssets` is enabled.
+- Missing assets and decompilation failures are listed in `asset-report.json` when `-IncludeReferencedAssets` is enabled.
+- Some s&box compiled assets may not be supported by the installed ValveResourceFormat version; failed decompilations are reported without leaving empty output folders.
 - This script does not redistribute any s&box content or third-party binaries.
